@@ -1,0 +1,39 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_LEFT_RIGHT()
+
+title C4 Context Diagram — Health (TO-BE)
+Person(patient, "Пациент", "Записывается на прием")
+Person(doctor, "Врач", "Упhавляет расписанием, просматривает анализы, пациентов")
+Person(laborant, "Лаборант", "Просматривает результаты анализов в LIS (контроль)")
+
+Container(mobileApp, "Мобильное приложение", "", "Запись на приём, оплата услуг, просмотр результатов анализов")
+Container(laboratory, "LIS (Лаборатория)", "", "SOAP/FTP")
+Container(analysis, "Анализы", "", "Просмотр, редактирование анализов")
+Container(webPortal, "Веб-портал", "", "Интерфейс для врачей и администраторов")
+Container(notifications, "Уведомления", "", "RabitMQ")
+Container(paymentGateway, "Платёжный шлюз", "", "Внешний REST API")
+Container(schedule, "Расписание", "", "grpc + PostgreSQL")
+Container(policies, "1С:Полисы", "", "HTTP шлюз")
+Container(crm, "CRM", "Микросервис на Java, Rest")
+
+Rel(laborant, webPortal, "Просматривает результаты анализов", "UI")
+Rel(webPortal, schedule, "Редактирование расписания", "Синхронно")
+Rel(webPortal, crm, "Синхронизация данных", "REST")
+Rel(laboratory, analysis, "Передача результатов анализов", "Пакетная выгрузка")
+Rel(webPortal, analysis, "Просмотр и редактирование анализов", "grpc")
+
+Rel(mobileApp, analysis, "Просмотр анализов", "синхронно")
+Rel(mobileApp, schedule, "Запись на прием", "асинхронно через очередь")
+Rel(mobileApp, paymentGateway, "Оплата услуг", "Синхронно")
+Rel(mobileApp, policies, "Проверка полиса", "Синхронно + кэширование")
+
+Rel(analysis, notifications, "Отправить уведомление о поступлении новых анализов", "асинхронно")
+Rel(doctor, webPortal, "Управляет расписанием, просматривает анализы", "UI")
+Rel(patient, mobileApp, "Запись на прием, оплата, просмотр анализов", "UI")
+Rel(notifications, patient, "Уведомления (push/sms)", "асинхронно")
+Rel(schedule, notifications, "Уведомления о подтверждении / не подтверждении / отмене записи", "асинхронно")
+
+@enduml

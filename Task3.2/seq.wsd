@@ -1,0 +1,54 @@
+' @startuml
+' participant Participant as Foo
+' actor       Actor       as Foo1
+' boundary    Boundary    as Foo2
+' control     Control     as Foo3
+' entity      Entity      as Foo4
+' database    Database    as Foo5
+' collections Collections as Foo6
+' queue       Queue       as Foo7
+' Foo -> Foo1 : To actor 
+' Foo -> Foo2 : To boundary
+' Foo -> Foo3 : To control
+' Foo -> Foo4 : To entity
+' Foo -> Foo5 : To database
+' Foo -> Foo6 : To collections
+' Foo -> Foo7 : To queue
+' @enduml
+
+@startuml
+actor       User                    as user
+participant MobileApp               as mobileApp
+queue       SchedulesKafka          as schedulesKafka
+participant Schedule                as schedule
+database    ScheduleDB              as scheduleDB
+queue       NotificationsKafka      as notificationsKafka
+participant Notifications           as notifications
+participant PaymentsGateway         as paymentsGateway
+
+
+user -> mobileApp : просматривает слоты
+mobileApp -> schedule : запрашивает информацию о расписании
+schedule --> mobileApp
+mobileApp --> user
+
+user -> mobileApp : выбирает слот
+mobileApp -> schedulesKafka : пушит запрос на запись
+schedulesKafka -> schedule : обрабатывает запросы на запись
+schedule -> scheduleDB : проверяет слот и занимает, если доступен
+scheduleDB --> schedule
+schedule -> notificationsKafka : уведомление о подтверждении бронирования
+notificationsKafka -> notifications : читает сообщения с уведомлениями
+notifications -> mobileApp : сообщение о подтверждении записи
+note over user : Вы успешно записаны на приём.\nОплатите посещение в течение 15 минут
+mobileApp -> user
+user -> mobileApp : оплачивает приём
+note over mobileApp : Здесь генерируем ключ идемпотентности.\nВ качестве ключа конкатенация client_id + slot_id\n(считаем, что id слота уникален для всех слотов всех врачей)
+mobileApp -> paymentsGateway : оплата
+paymentsGateway --> mobileApp : успех
+mobileApp --> user : прием оплачен
+mobileApp -> schedulesKafka : отправляем сообщение, что прием оплачен
+schedulesKafka -> schedule : приём оплачен, резервируем время под сдачу аналаизов
+schedule -> scheduleDB : приём оплачен, резервируем время под сдачу анализов
+
+@enduml

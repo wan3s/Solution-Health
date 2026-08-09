@@ -1,0 +1,260 @@
+openapi: 3.2.0
+info:
+  title: Health Upcoming Appointments API
+  description: API для проверки предстоящих записей пациента к врачу.
+  version: 1.0.0
+
+tags:
+  - name: Appointments
+    description: Управление записями на приём
+
+security:
+  - bearerAuth: []
+
+paths:
+  /clients/{clientId}/appointments:
+    get:
+      summary: Получить список записей пациента
+      description: >
+        Возвращает все визиты пациента к врачу. 
+        Есть фильтрация по врачу и статусу (завершенные, предстоящие, не подтвержденные).
+        Поддерживает пагинацию .
+      tags:
+        - Appointments
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          description: Уникальный идентификатор клиента
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: doctorId
+          in: query
+          required: false
+          description: Фильтр по идентификатору врача
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусам визитов
+          schema:
+            type: string
+            enum:
+            - scheduled
+            - confirmed
+            - cancelled
+            - completed
+        - name: limit
+          in: query
+          required: false
+          description: Максимальное количество возвращаемых записей
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          description: Смещение для пагинации
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Успешный ответ со списком визитов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+              examples:
+                appointmentsExample:
+                  summary: Пример с двумя предстоящими визитами
+                  value:
+                    data:
+                      - id: "apt-101"
+                        clientId: "550e8400-e29b-41d4-a716-446655440000"
+                        doctor:
+                          id: "d1e2f3a4-5678-90ab-cdef-1234567890ab"
+                          name: "Иванов Иван Иванович"
+                          specialty: "Терапевт"
+                        dateTime: "2026-08-10T09:30:00Z"
+                        duration: 30
+                        status: "scheduled"
+                        location: "Кабинет 305"
+                        notes: "Плановый осмотр"
+                      - id: "apt-102"
+                        clientId: "550e8400-e29b-41d4-a716-446655440000"
+                        doctor:
+                          id: "a2b3c4d5-6789-01ab-cdef-2345678901bc"
+                          name: "Петрова Анна Сергеевна"
+                          specialty: "Кардиолог"
+                        dateTime: "2026-08-15T14:00:00Z"
+                        duration: 45
+                        status: "confirmed"
+                        location: "Кабинет 412"
+                        notes: "ЭКГ и консультация"
+                    total: 2
+                    limit: 20
+                    offset: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Пациент не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT-токен, полученный при аутентификации пациента.
+
+  schemas:
+    Appointment:
+      type: object
+      required:
+        - id
+        - clientId
+        - doctor
+        - dateTime
+        - duration
+        - status
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор записи
+          example: "apt-101"
+        clientId:
+          type: string
+          format: uuid
+          description: Идентификатор клиента
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        doctor:
+          $ref: '#/components/schemas/Doctor'
+        dateTime:
+          type: string
+          format: date-time
+          description: Дата и время начала приёма (UTC)
+          example: "2026-08-10T09:30:00Z"
+        duration:
+          type: integer
+          description: Продолжительность приёма в минутах
+          minimum: 5
+          example: 30
+        status:
+          type: string
+          enum:
+            - scheduled
+            - confirmed
+            - cancelled
+            - completed
+          description: |
+            Статус записи. Для предстоящих визитов возвращаются только `scheduled` и `confirmed`.
+          example: "confirmed"
+        location:
+          type: string
+          description: Место проведения приёма (кабинет, отделение)
+          example: "Кабинет 305"
+        notes:
+          type: string
+          description: Дополнительные заметки к визиту
+          example: "Плановый осмотр"
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата создания записи
+          example: "2026-07-20T08:15:00Z"
+
+    Doctor:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор врача
+          example: "d1e2f3a4-5678-90ab-cdef-1234567890ab"
+        name:
+          type: string
+          description: ФИО врача
+          example: "Иванов Иван Иванович"
+        specialty:
+          type: string
+          description: Специализация
+          example: "Терапевт"
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Код ошибки
+          example: 404
+        message:
+          type: string
+          description: Человекочитаемое сообщение
+          example: "Пациент с указанным ID не найден"
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: "Параметр 'limit' должен быть от 1 до 100"
+    Unauthorized:
+      description: Неавторизованный доступ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: "Требуется действительный токен доступа"
+    Forbidden:
+      description: Доступ запрещён (чужие записи)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 403
+            message: "У вас нет прав для просмотра записей этого пациента"
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: "Внутренняя ошибка. Попробуйте позже."

@@ -1,0 +1,17 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_LEFT_RIGHT()
+
+title C4 Context Diagram — Health (TO-BE)
+Person(patient, "Пациент", "Записывается на прием")
+
+Container(1cpolicies, "1С:Полисы", "", "")
+Container(displayPolicies, "Витрина с полисами", "", "Кеширует полисы с TTL = 1 day. Если полис не найден, то фолбек в 1C")
+Container(mobileApp, "Мобильное приложение", "", "Запись на приём, оплата услуг, просмотр результатов анализов")
+
+Rel(patient, mobileApp, "", "Работа с приложением")
+Rel(mobileApp, displayPolicies, "Проверка полисов", "синхронно")
+Rel(displayPolicies, 1cpolicies, "Подтягивает информацию о полисе пациента", "синхронно")
+@enduml
