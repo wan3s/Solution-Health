@@ -8,6 +8,9 @@ tags:
   - name: Appointments
     description: Управление записями на приём
 
+security:
+  - bearerAuth: []
+
 paths:
   /clients/{clientId}/appointments:
     get:
